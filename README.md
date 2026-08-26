@@ -728,7 +728,7 @@ Secrets and private customer information are not intentionally logged.
 
 ## 15. Demo
 
-[Watch the Aster & Row Agent Demo](demo/agent-demo.mp4)
+[Watch the Aster & Row Agent Demo](https://drive.google.com/file/d/16e_kkf7O4-GVmhkkdkBQmfQ7ENTybq0w/view?usp=sharing)
 
 ## 16. Repository structure
 
