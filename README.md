@@ -4,29 +4,39 @@ A reliable customer-support agent built for the Aster & Row AI Agent Intern Take
 
 The agent combines retrieval-augmented generation, safe order lookup, session memory, source precedence, conflict detection, privacy protection, prompt-injection handling, and deterministic evaluation.
 
----
+## Demo
+
+[🎥 Watch the Aster & Row Agent Demo](https://drive.google.com/file/d/16e_kkf7O4-GVmhkkdkBQmfQ7ENTybq0w/view?usp=sharing)
+
+The demo shows:
+
+- A knowledge-base question with source citation
+- An order lookup
+- A multi-turn conversation
+- An insufficient-information / human-handoff case
+- The evaluation suite finishing with 23/23 cases passed
 
 ## 1. What this project does
 
 The agent handles two main types of customer requests:
 
-1. Knowledge-base questions
-   - Returns
-   - Shipping
-   - Warranty
-   - Product care
-   - Membership
-   - Other company policies
+### Knowledge-base questions
 
-2. Order questions
-   - Order status
-   - Carrier
-   - Tracking number
-   - Estimated delivery when available
+- Returns
+- Shipping
+- Warranty
+- Product care
+- Membership
+- Other company policies
+
+### Order questions
+
+- Order status
+- Carrier
+- Tracking number
+- Estimated delivery when available
 
 The system deliberately avoids guessing when the supplied information is insufficient and recommends human support when required.
-
----
 
 ## 2. Architecture
 
@@ -117,17 +127,21 @@ The system deliberately avoids guessing when the supplied information is insuffi
 - Supports multi-turn follow-up questions.
 
 `app/llm.py`
-- Contains the OpenAI LLM wrapper.
+- Contains the Gemini LLM implementation using the `google-genai` SDK.
 
 `app/mock_llm.py`
 - Provides a deterministic local response generator for development and evaluation.
-- Allows the evaluation suite to run without API costs.
+- Allows the evaluation suite to run without API calls and produce reproducible results.
+
+`app/chat.py`
+- Provides a simple interactive terminal chat interface for demonstrations.
+
+`app/main.py`
+- Provides the FastAPI API interface.
 
 `evaluation/run_eval.py`
 - Runs all visible and custom regression cases.
 - Reports individual case results and category-level results.
-
----
 
 ## 3. Technology choices
 
@@ -137,9 +151,11 @@ Python 3.10
 
 ### LLM
 
-The project contains an OpenAI Responses API wrapper in `app/llm.py`.
+The live application uses the Gemini API through the `google-genai` Python SDK.
 
-A local deterministic mock implementation is also included in `app/mock_llm.py` so the full evaluation suite can run without requiring API credits.
+`app/llm.py` contains the Gemini LLM implementation.
+
+A deterministic local implementation is also included in `app/mock_llm.py` so the evaluation suite can run without API calls and produce reproducible results.
 
 ### Retrieval
 
@@ -172,15 +188,13 @@ No external database or production vector database is required for this assignme
 
 FastAPI is included for a minimal application interface.
 
----
-
 ## 4. Setup
 
 ### Clone the repository
 
 ```bash
 git clone <YOUR_REPOSITORY_URL>
-cd ai-agent-intern-test
+cd ai-agent-assignment-solution
 ```
 
 ### Create a virtual environment
@@ -214,9 +228,29 @@ Do not commit `.env`.
 
 The evaluation suite can be run using the deterministic mock implementation and does not require live API credits.
 
----
+## 5. Running the demo chat
 
-## 5. Running the evaluation
+Start the terminal chat interface:
+
+```bash
+python -m app.chat
+```
+
+The demo interface displays:
+
+- the assistant response
+- sources when applicable
+- whether human handoff is recommended
+- the detected intent
+- whether the order tool was used
+
+The FastAPI API can also be started with:
+
+```bash
+python -m uvicorn app.main:app --reload
+```
+
+## 6. Running the evaluation
 
 Run:
 
@@ -237,9 +271,7 @@ The evaluation covers:
 - abstention
 - multi-source grounding
 
----
-
-## 6. Evaluation results
+## 7. Evaluation results
 
 Final evaluation:
 
@@ -290,9 +322,7 @@ Overall: 23/23 cases passed
 | Tool use | 2/2 |
 | Custom tool use | 3/3 |
 
----
-
-## 7. Reliability and safety behavior
+## 8. Reliability and safety behavior
 
 ### Current policy takes precedence
 
@@ -356,9 +386,7 @@ The agent refuses requests for:
 - internal order information
 - customer private information
 
----
-
-## 8. Multi-turn conversation
+## 9. Multi-turn conversation
 
 Session history is maintained separately for each session.
 
@@ -377,19 +405,18 @@ and:
 ```text
 User: Where is ORD-1007?
 Assistant: ...
+
 User: When will it arrive?
 Assistant: ...
 ```
 
 The second order question can recover the relevant order ID from recent conversation context.
 
----
+## 10. Bug diary
 
-## 9. Bug diary
+### Bug 1 — Legacy policy could outrank current policy
 
-## Bug 1 — Legacy policy could outrank current policy
-
-### Reproduction
+**Reproduction**
 
 Ask:
 
@@ -397,25 +424,23 @@ Ask:
 What is the standard return window?
 ```
 
-### Root cause
+**Root cause**
 
 Initial TF-IDF ranking considered textual similarity without giving enough importance to document status and authority.
 
-### Fix
+**Fix**
 
 Added metadata-based retrieval weighting and authority filtering.
 
 Active official customer-facing documents receive positive ranking signals while superseded and internal documents are penalized.
 
-### Regression test
+**Regression test**
 
 `standard-return-window`
 
----
+### Bug 2 — Unrelated documents received positive scores
 
-## Bug 2 — Unrelated documents received positive scores
-
-### Reproduction
+**Reproduction**
 
 Ask:
 
@@ -425,23 +450,21 @@ Do you ship internationally?
 
 Initially, unrelated active official documents with zero text similarity still received metadata bonuses.
 
-### Root cause
+**Root cause**
 
 The first scoring formula added metadata bonuses even when text similarity was zero.
 
-### Fix
+**Fix**
 
 Zero-similarity documents are no longer promoted by metadata alone.
 
-### Regression test
+**Regression test**
 
 International shipping retrieval case.
 
----
+### Bug 3 — Warranty answer passage was not ranked first
 
-## Bug 3 — Warranty answer passage was not ranked first
-
-### Reproduction
+**Reproduction**
 
 Ask:
 
@@ -451,23 +474,21 @@ What is the warranty period?
 
 The product-care document initially ranked above the explicit warranty-period passage.
 
-### Root cause
+**Root cause**
 
 TF-IDF relied heavily on general word overlap and did not distinguish the exact semantic importance of the heading.
 
-### Fix
+**Fix**
 
 The retriever gives headings additional representation and retrieves multiple passages rather than assuming the top result is always the complete answer.
 
-### Regression test
+**Regression test**
 
 Warranty retrieval case.
 
----
+### Bug 4 — Evidence checker incorrectly trusted vague related evidence
 
-## Bug 4 — Evidence checker incorrectly trusted vague related evidence
-
-### Reproduction
+**Reproduction**
 
 Ask:
 
@@ -475,23 +496,21 @@ Ask:
 Are all bags and adhesives vegan?
 ```
 
-### Root cause
+**Root cause**
 
 Retrieved documents contained relevant words such as "bags", but did not establish the specific vegan-material claim.
 
-### Fix
+**Fix**
 
 Added query-to-evidence coverage checks and explicit abstention behavior.
 
-### Regression test
+**Regression test**
 
 `custom-vegan-abstention`
 
----
+### Bug 5 — Cancelled order exposed stale shipment data
 
-## Bug 5 — Cancelled order exposed stale shipment data
-
-### Reproduction
+**Reproduction**
 
 Look up:
 
@@ -499,56 +518,52 @@ Look up:
 ORD-1004
 ```
 
-### Root cause
+**Root cause**
 
 The raw JSON contains carrier and delivery fields even though the current status is cancelled.
 
-### Fix
+**Fix**
 
 Cancelled and returned orders return customer-safe status information without stale shipment fields.
 
-### Regression tests
+**Regression tests**
 
 `cancelled-order-stale-eta`
 
 `custom-cancelled-order`
 
----
+### Bug 6 — Multi-turn order follow-up lost the order ID
 
-## Bug 6 — Multi-turn order follow-up lost the order ID
-
-### Reproduction
+**Reproduction**
 
 ```text
 Where is ORD-1007?
 When will it arrive?
 ```
 
-### Root cause
+**Root cause**
 
 The second message contained no order ID.
 
-### Fix
+**Fix**
 
 Added session history and recovery of the most recent order ID for explicit order follow-up phrases.
 
-### Regression test
+**Regression test**
 
 `custom-order-followup`
 
----
+### Bug 7 — Handoff was initially inferred from generated text
 
-## Bug 7 — Handoff was initially inferred from generated text
-
-### Reproduction
+**Reproduction**
 
 A conflict was detected correctly, but the generated mock response did not contain words such as "human support", causing `handoff=False`.
 
-### Root cause
+**Root cause**
 
 Handoff status was inferred from the wording of the model response.
 
-### Fix
+**Fix**
 
 Handoff is now determined from application state:
 
@@ -557,15 +572,13 @@ Handoff is now determined from application state:
 - protected-information request
 - unknown order
 
-### Regression tests
+**Regression tests**
 
 `genuine-active-source-conflict`
 
 `custom-breeze-conflict`
 
----
-
-## 10. Baseline vs final evaluation
+## 11. Baseline vs final evaluation
 
 Early baseline:
 
@@ -581,9 +594,7 @@ After fixing evidence handling, multi-turn retrieval, policy precedence, privacy
 
 This improvement came from iterative regression testing rather than optimizing only for the happy path.
 
----
-
-## 11. Known limitations
+## 12. Known limitations
 
 This project is intentionally scoped to the take-home assignment.
 
@@ -601,14 +612,11 @@ A production system would use durable session storage with appropriate retention
 
 ### LLM provider
 
-The live application uses the Gemini API through the `google-genai`
-Python SDK.
+The live application uses the Gemini API through the `google-genai` Python SDK.
 
 `app/llm.py` contains the Gemini LLM implementation.
 
-A deterministic local implementation is also included in
-`app/mock_llm.py` so the evaluation suite can run without API
-calls and produce reproducible results.
+A deterministic local implementation is also included in `app/mock_llm.py` so the evaluation suite can run without API calls and produce reproducible results.
 
 ### Authentication
 
@@ -626,9 +634,7 @@ Production use would require explicit transactional tools with authorization and
 
 The current implementation combines metadata and targeted conflict rules. A production system should generalize conflict detection beyond known documents and product cases.
 
----
-
-## 12. AI coding tools used
+## 13. AI coding tools used
 
 I used ChatGPT as an AI coding assistant during development.
 
@@ -654,9 +660,7 @@ I identified the issue through testing, changed the scoring behavior, and added 
 
 Another issue was an overly strict evidence-coverage heuristic that initially treated an explicit "Canada only" policy as insufficient for a question about Germany. This was corrected so exclusive policies can answer unsupported-destination questions.
 
----
-
-## 13. Running individual components
+## 14. Running individual components
 
 ### Knowledge-base loader
 
@@ -694,15 +698,19 @@ python -m app.test_evidence
 python -m app.test_security
 ```
 
+### Demo chat
+
+```bash
+python -m app.chat
+```
+
 ### Evaluation suite
 
 ```bash
 python -m evaluation.run_eval
 ```
 
----
-
-## 14. Debug mode
+## 15. Debug mode
 
 Set:
 
@@ -724,12 +732,6 @@ The application logs can be used to inspect:
 
 Secrets and private customer information are not intentionally logged.
 
----
-
-## 15. Demo
-
-[Watch the Aster & Row Agent Demo](https://drive.google.com/file/d/16e_kkf7O4-GVmhkkdkBQmfQ7ENTybq0w/view?usp=sharing)
-
 ## 16. Repository structure
 
 ```text
@@ -739,6 +741,7 @@ Secrets and private customer information are not intentionally logged.
 │   ├── __init__.py
 │   ├── agent.py
 │   ├── authority.py
+│   ├── chat.py
 │   ├── context.py
 │   ├── evidence.py
 │   ├── kb.py
@@ -750,9 +753,19 @@ Secrets and private customer information are not intentionally logged.
 │   ├── prompts.py
 │   ├── retriever.py
 │   ├── safety.py
-│   └── session.py
+│   ├── session.py
+│   ├── test_agent.py
+│   ├── test_authority.py
+│   ├── test_evidence.py
+│   ├── test_kb.py
+│   ├── test_orders.py
+│   ├── test_retriever.py
+│   ├── test_security.py
+│   └── test_session.py
 │
 ├── data/
+├── demo/
+│   └── agent-demo.mp4
 ├── evaluation/
 │   ├── custom-cases.json
 │   ├── run_eval.py
@@ -763,8 +776,6 @@ Secrets and private customer information are not intentionally logged.
 ├── .gitignore
 └── requirements.txt
 ```
-
----
 
 ## 17. Final result
 
