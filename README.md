@@ -728,25 +728,7 @@ Secrets and private customer information are not intentionally logged.
 
 ## 15. Demo
 
-A short 2–4 minute demo should show:
-
-1. A knowledge-base question with source citation.
-2. An order lookup.
-3. A multi-turn follow-up.
-4. An insufficient-information or human-handoff case.
-5. The evaluation suite running to `23/23`.
-
-Add the final GIF or video here before submission.
-
-Example:
-
-```markdown
-## Demo
-
-[![Aster & Row Agent Demo](demo-thumbnail.gif)](YOUR_VIDEO_URL)
-```
-
----
+[Watch the Aster & Row Agent Demo](demo/agent-demo.mp4)
 
 ## 16. Repository structure
 
